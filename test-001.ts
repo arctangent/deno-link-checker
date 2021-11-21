@@ -20,7 +20,7 @@ const db = new Database<RequestResponse>('./database.json');
 
 // We could stick a ? or # in this to terminate
 // when a querystring or page anchor is detected
-const hrefRegex = /href\s*=\s*(?:[\'\"]*)([^\s\>\'\"]*)(?:[\'\"\s]*)/g;
+const hrefRegex = /href\s*=\s*(?:[\'\"]*)([^\s\>\'\"\#\?]*)(?:[\'\"\s]*)/g;
 
 const targetDomain = 'https://www.nhs.uk';
 
@@ -28,7 +28,7 @@ await db.insertOne({ url: targetDomain, status: 0});
 
 // Start a loop here
 
-const url = targetDomain;
+let url = targetDomain;
 
 
 // Can also do `fetch(targetDomain, { redirect: 'manual' })`
@@ -42,7 +42,11 @@ await db.updateOne({ url: url }, { status: response.status });
 const matches = html.matchAll(hrefRegex);
 
 for (const match of matches) {
-    await db.insertOne({ url: match[1], status: 0});
+    let newUrl = match[1];
+    if (newUrl == '') continue;
+    if (newUrl == '/') continue;
+    newUrl = newUrl.startsWith('/') ? targetDomain + newUrl : newUrl;
+    await db.insertOne({ url: newUrl, status: 0});
 }
 
 
