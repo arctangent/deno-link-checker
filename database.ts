@@ -17,7 +17,7 @@ export async function dbAddUrl(url: string) {
     await database.insertOne({ url: url });
 }
 
-export async function dbUpdate(url: string, params: Omit<RequestResponse, 'url'>) {
+export async function dbUpdateUrl(url: string, params: Omit<RequestResponse, 'url'>) {
     // NOTE: If url not found then no action taken
     await database.updateOne({ url: url }, params);
 }

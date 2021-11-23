@@ -2,7 +2,7 @@
 // Link Checker
 
 import { getCanonicalHrefs } from './parser.ts';
-import { dbAddUrl, dbUpdate } from './database.ts';
+import { dbAddUrl, dbUpdateUrl } from './database.ts';
 
 // Spider the site and store responses
 
@@ -19,7 +19,7 @@ const url = domain;
 const response = await fetch(domain, { redirect: 'manual' });
 const html = await response.text();
 
-await dbUpdate(url, { status: response.status })
+await dbUpdateUrl(url, { status: response.status })
 
 const hrefs = getCanonicalHrefs(domain, html);
 
