@@ -2,28 +2,35 @@
 // Link Checker
 
 import { getCanonicalHrefs } from './parser.ts';
-import { dbAddUrl, dbUpdateUrl } from './database.ts';
+import { dbAddUrl, dbUpdateUrl, dbUnscannedUrls } from './database.ts';
 
 // Spider the site and store responses
 
 const domain = 'https://www.nhs.uk';
+let max = 10;
 
 await dbAddUrl(domain);
 
-// TODO: Start a loop here
+let batch: string[] = []
 
-const url = domain;
+infiniteLoop:
+while (true) {
+    batch = await dbUnscannedUrls();
+    if (batch.length == 0) break;
 
-// Can also do `fetch(domain, { redirect: 'manual' })`
-// in order to disable automatic following of redirects
-const response = await fetch(domain, { redirect: 'manual' });
-const html = await response.text();
+    for (const url of batch) {
+        max--; if (max==0) break infiniteLoop;
+        console.log(max + ' Scanning ' + url);
 
-await dbUpdateUrl(url, { status: response.status })
+        const response = await fetch(url, { redirect: 'manual' });
+        const html = await response.text();
 
-const hrefs = getCanonicalHrefs(domain, html);
+        await dbUpdateUrl(url, { status: response.status })
 
-for (const href of hrefs) {
-    console.log(href);
-    await dbAddUrl(href);
+        const hrefs = getCanonicalHrefs(domain, html);
+
+        for (const href of hrefs) {
+            await dbAddUrl(href);
+        }
+    }
 }
