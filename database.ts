@@ -3,7 +3,7 @@ import { Database } from 'https://deno.land/x/aloedb@0.9.0/mod.ts';
 
 interface RequestResponse {
     url: string;
-    status: number; // HTTP Status Code on last scan
+    status?: number; // HTTP Status Code on last scan
     type?: string;   // HTTP ContentType on last scan
     metaLastScanned?: number;    // Unix epoch
     metaLastScraped?: number;    // Unix epoch
@@ -13,8 +13,17 @@ interface RequestResponse {
 
 const database = new Database<RequestResponse>('./database.json');
 
+export async function dbFlush() {
+    await database.drop();
+}
+
+export async function dbCount(params: Partial<RequestResponse>) {
+    return await database.count(params);
+}
+
 export async function dbAddUrl(url: string) {
-    // We use status==0 to indicate an unscanned Url
+    const exists = await database.count({ url: url });
+    if (exists != 0) return;
     await database.insertOne({ url: url, status: 0 });
 }
 

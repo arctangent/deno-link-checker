@@ -11,6 +11,8 @@ let max = 10;
 
 await dbAddUrl(domain);
 
+
+
 let batch: string[] = []
 
 infiniteLoop:
