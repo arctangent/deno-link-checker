@@ -1,6 +1,7 @@
 
 // Link Checker
 
+import { getCanonicalHrefs } from './parser.ts';
 
 // Set up database
 
@@ -13,14 +14,7 @@ interface RequestResponse {
 
 const db = new Database<RequestResponse>('./database.json');
 
-
-
-
-
-
-// We could stick a ? or # in this to terminate
-// when a querystring or page anchor is detected
-const hrefRegex = /href\s*=\s*(?:[\'\"]*)([^\s\>\'\"\#\?]*)(?:[\'\"\s]*)/g;
+// Spider the site and store responses
 
 const targetDomain = 'https://www.nhs.uk';
 
@@ -28,25 +22,20 @@ await db.insertOne({ url: targetDomain, status: 0});
 
 // Start a loop here
 
-let url = targetDomain;
-
+const url = targetDomain;
 
 // Can also do `fetch(targetDomain, { redirect: 'manual' })`
 // in order to disable automatic following of redirects
 const response = await fetch(targetDomain, { redirect: 'manual' });
 const html = await response.text();
 
-
 await db.updateOne({ url: url }, { status: response.status });
 
-const matches = html.matchAll(hrefRegex);
+const hrefs = getCanonicalHrefs(targetDomain, html);
 
-for (const match of matches) {
-    let newUrl = match[1];
-    if (newUrl == '') continue;
-    if (newUrl == '/') continue;
-    newUrl = newUrl.startsWith('/') ? targetDomain + newUrl : newUrl;
-    await db.insertOne({ url: newUrl, status: 0});
+for (const href of hrefs) {
+    console.log(href);
+    await db.insertOne({ url: href, status: 0});
 }
 
 
