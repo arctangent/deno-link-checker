@@ -99,6 +99,14 @@ Deno.test({
     }
 });
 
-
-// <a href=https://example.com/test1>test1</a>
-// <a href=https://example.com/test2 attr=value>test2</a>
+Deno.test({
+    name: 'getCanonicalHrefs ignores href trailing space',
+    fn: () => {
+        const root = 'https://example.com';
+        const input = `
+            <a href=https://example.com/foo attr=value>complicated anchor tag</a>
+        `;
+        const expected: string[] = ['https://example.com/foo'];
+        assertEquals(expected, output(root, input));
+    }
+});
