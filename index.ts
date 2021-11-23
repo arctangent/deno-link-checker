@@ -2,43 +2,28 @@
 // Link Checker
 
 import { getCanonicalHrefs } from './parser.ts';
-
-// Set up database
-
-import { Database } from 'https://deno.land/x/aloedb@0.9.0/mod.ts';
-
-interface RequestResponse {
-    url: string;
-    status: number;
-}
-
-const db = new Database<RequestResponse>('./database.json');
+import { dbAddUrl, dbUpdate } from './database.ts';
 
 // Spider the site and store responses
 
-const targetDomain = 'https://www.nhs.uk';
+const domain = 'https://www.nhs.uk';
 
-await db.insertOne({ url: targetDomain, status: 0});
+await dbAddUrl(domain);
 
-// Start a loop here
+// TODO: Start a loop here
 
-const url = targetDomain;
+const url = domain;
 
-// Can also do `fetch(targetDomain, { redirect: 'manual' })`
+// Can also do `fetch(domain, { redirect: 'manual' })`
 // in order to disable automatic following of redirects
-const response = await fetch(targetDomain, { redirect: 'manual' });
+const response = await fetch(domain, { redirect: 'manual' });
 const html = await response.text();
 
-await db.updateOne({ url: url }, { status: response.status });
+await dbUpdate(url, { status: response.status })
 
-const hrefs = getCanonicalHrefs(targetDomain, html);
+const hrefs = getCanonicalHrefs(domain, html);
 
 for (const href of hrefs) {
     console.log(href);
-    await db.insertOne({ url: href, status: 0});
+    await dbAddUrl(href);
 }
-
-
-
-
-
