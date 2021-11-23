@@ -1,7 +1,7 @@
 
 import { assertEquals } from "https://deno.land/std@0.115.1/testing/asserts.ts";
 
-import { getCanonicalHrefs as output} from '../parser.ts';
+import { getCanonicalHrefs as output } from '../parser.ts';
 
 Deno.test({
     name: 'getCanonicalHrefs handles quoted and unquoted hrefs',
