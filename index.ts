@@ -7,15 +7,15 @@ import { dbAddUrlIfNotExists, dbUpdateUrlIfExists, dbGetUnscannedUrls } from './
 // TODO: These should be exposed as command line arguments
 
 const domain = 'https://www.nhs.uk';
-const maxDepth = 2;
-const maxRequests = 10;
+const maxDepth = 0;     // Set to zero to enforce no limit
+const maxRequests = 0;  // Set to zero to enforce no limit
 
 // Spider the site and store response data
 
 await dbAddUrlIfNotExists(domain);
 
 let batch: string[] = []
-let currentDepth = 0;
+let currentDepth = 0;   
 let currentRequests = 0;
 
 infiniteLoop:
@@ -23,7 +23,7 @@ while (true) {
 
     // Guard for maxDepth
     currentDepth++;
-    if (currentDepth > maxDepth) break infiniteLoop;
+    if (maxDepth && (currentDepth > maxDepth)) break infiniteLoop;
 
     // Pull urls from the queue
     batch = await dbGetUnscannedUrls();
@@ -35,7 +35,7 @@ while (true) {
 
         // Guard for maxRequests
         currentRequests++;
-        if (currentRequests > maxRequests) break infiniteLoop;
+        if (maxRequests && (currentRequests > maxRequests)) break infiniteLoop;
 
         // Basic progress indicator
         console.log(currentRequests.toString().padStart(6, '0') + ': Scanning ' + url);
