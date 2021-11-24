@@ -21,18 +21,18 @@ export async function dbCount(params: Partial<RequestResponse>) {
     return await database.count(params);
 }
 
-export async function dbAddUrl(url: string) {
+export async function dbAddUrlIfNotExists(url: string) {
     const exists = await database.count({ url: url });
     if (exists != 0) return;
     await database.insertOne({ url: url, status: 0 });
 }
 
-export async function dbUpdateUrl(url: string, params: Omit<RequestResponse, 'url'>) {
+export async function dbUpdateUrlIfExists(url: string, params: Omit<RequestResponse, 'url'>) {
     // NOTE: If url not found then no action taken
     await database.updateOne({ url: url }, params);
 }
 
-export async function dbUnscannedUrls() {
+export async function dbGetUnscannedUrls() {
     const objs = await database.findMany({ status: 0 });
     const urls = [];
     for (const obj of objs) {
