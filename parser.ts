@@ -17,13 +17,13 @@ export function getCanonicalHrefs(root: string, text: string) {
 
 export function sanitise(root: string, url: string) {
     // Sanitise
-    if (url == '') return;
-    if (url == '/') return;
+    if (url == '') return '';
+    if (url == '/') return '';
     url = url.startsWith('/') ? root + url : url;
-    if (url == root) return;
-    if (url == root + '/') return;
-    if (url.startsWith('tel:')) return;
-    if (url.startsWith('email:')) return;
-    if (!url.startsWith(root)) return;
+    if (url == root) return '';
+    if (url == root + '/') return '';
+    if (url.startsWith('tel:')) return '';
+    if (url.startsWith('email:')) return '';
+    if (!url.startsWith(root)) return '';
     return url;
 }
