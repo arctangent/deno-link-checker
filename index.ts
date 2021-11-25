@@ -46,6 +46,8 @@ while (true) {
         if (response.status.toString().startsWith('3')) {
             // Process a redirect
             let redirectsTo = response.headers.get('location') ?? '';
+            // FIXME: Sanitising will blank out redirects to external sites
+            //        This may not be what we want to
             redirectsTo = sanitise(domain, redirectsTo);
             await dbUpdateUrlIfExists(url, {
                 status: response.status,
