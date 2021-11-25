@@ -7,13 +7,13 @@ import { dbAddUrlIfNotExists, dbUpdateUrlIfExists, dbGetUnscannedUrls } from './
 
 // TODO: These should be exposed as command line arguments
 
-const domain = 'https://www.nhs.uk';
-const maxRequests = 0;  // Set to zero to enforce no limit
-const timeout = 500;    // How many ms to sleep inbetween HTTP requests
+const DOMAIN = 'https://www.nhs.uk';
+const MAX_REQUESTS = 0;  // Set to zero to enforce no limit
+const REQUEST_INTERVAL = 500;    // How many ms to sleep inbetween HTTP requests
 
 // Spider the site and store response data
 
-await dbAddUrlIfNotExists(domain);
+await dbAddUrlIfNotExists(DOMAIN);
 
 let batch: string[] = []  
 let requestCount = 0;
@@ -33,7 +33,7 @@ while (true) {
 
         // Guard for maxRequests
         requestCount++;
-        if (maxRequests && (requestCount > maxRequests)) break infiniteLoop;     
+        if (MAX_REQUESTS && (requestCount > MAX_REQUESTS)) break infiniteLoop;     
 
         // Fetch the url and store data
         const response = await fetch(url, { redirect: 'manual' });
@@ -48,7 +48,7 @@ while (true) {
             let redirectsTo = response.headers.get('location') ?? '';
             // FIXME: Sanitising will blank out redirects to external sites
             //        This may not be what we want to
-            redirectsTo = sanitise(domain, redirectsTo);
+            redirectsTo = sanitise(DOMAIN, redirectsTo);
             await dbUpdateUrlIfExists(url, {
                 status: response.status,
                 type: response.headers.get('content-type') ?? '',
@@ -61,7 +61,7 @@ while (true) {
         } else {
             // Process any response except a redirect
             // Add all detected hrefs to the queue
-            const hrefs = getCanonicalHrefs(domain, html);
+            const hrefs = getCanonicalHrefs(DOMAIN, html);
             for (const href of hrefs) {
                 await dbAddUrlIfNotExists(href);
             }
@@ -77,7 +77,7 @@ while (true) {
         console.log(info);
 
         // Play nice with the server
-        await sleep(timeout);
+        await sleep(REQUEST_INTERVAL);
 
     }
 
