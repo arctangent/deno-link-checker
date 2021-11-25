@@ -5,10 +5,12 @@ interface RequestResponse {
     url: string;
     status?: number; // HTTP Status Code on last scan
     type?: string;   // HTTP ContentType on last scan
-    metaLastScanned?: number;    // Unix epoch
-    metaLastScraped?: number;    // Unix epoch
-    inboundUrls?: string[];
-    outboundUrls?: string[];
+    // Timestamping
+    timestamp?: number;    // Unix epoch
+    // Track hrefs in page content
+    linksTo?: string[];         // Where does this page link to
+    // Track redirects
+    redirectsTo?: string;       // Where does this URL redirect to
 }
 
 const database = new Database<RequestResponse>('./database.json');
@@ -21,10 +23,13 @@ export async function dbCount(params: Partial<RequestResponse>) {
     return await database.count(params);
 }
 
-export async function dbAddUrlIfNotExists(url: string) {
+export async function dbAddUrlIfNotExists(url: string, params?: Omit<RequestResponse, 'url'>) {
     const exists = await database.count({ url: url });
     if (exists != 0) return;
     await database.insertOne({ url: url, status: 0 });
+    if (params) {
+        await database.updateOne({ url: url }, params);
+    }
 }
 
 export async function dbUpdateUrlIfExists(url: string, params: Omit<RequestResponse, 'url'>) {
