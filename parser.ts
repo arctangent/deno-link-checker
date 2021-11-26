@@ -2,10 +2,18 @@
 export class Parser {
 
     domain: string;
+    excludes: string[];
     readonly hrefRegex = /href\s*=\s*(?:[\'\"]*)([^\s\>\'\"\#\?]*)(?:[\'\"\s]*)/g;
 
-    constructor(domain: string) {
+    constructor(domain: string, excludes?: string[]) {
         this.domain = domain;
+        this.excludes = [];
+        if (excludes) {
+            for (const rawExclude of excludes) {
+                const cleanExclude = this.cleanURL(rawExclude);
+                if (cleanExclude) this.excludes.push(cleanExclude);
+            }
+        }
     }
 
     getURLs(input: string): string[] {
@@ -13,11 +21,10 @@ export class Parser {
         let output: string[] = [];
         for (const match of matches) {
             const href = this.cleanURL(match[1]);
-            if (href) output.push(href);
+            if (href && !this.isExcluded(href)) output.push(href);
         }
         // Make unique and sort alphabetically
         output = [...new Set(output)].sort();
-
         return output;
     }
 
@@ -37,6 +44,13 @@ export class Parser {
         if (!url.startsWith(this.domain)) return null;
         // URL is clean
         return url;
+    }
+
+    isExcluded(url: string): boolean {
+        for (const exclude of this.excludes) {
+            if (url.startsWith(exclude)) return true;
+        }
+        return false;
     }
 
 }

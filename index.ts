@@ -9,13 +9,14 @@ import * as helpers from './helpers.ts';
 // TODO: These should be exposed as command line arguments
 
 const DOMAIN = 'https://www.nhs.uk';
-const MAX_REQUESTS = 100;  // Set to zero to enforce no limit
-const REQUEST_INTERVAL = 500;    // How many ms to sleep inbetween HTTP requests
+const EXCLUDES = ['/service-search'];   // These URLs will be completely ignored
+const MAX_REQUESTS = 100;       // Set to zero to enforce no limit
+const REQUEST_INTERVAL = 500;   // How many ms to sleep inbetween HTTP requests
 
 // Initialisation
 
-const parser = new Parser(DOMAIN);
-const db = new Database('./data/db.live.json')
+const parser = new Parser(DOMAIN, EXCLUDES);
+const db = new Database('./data/db.live.json');
 
 // Spider the site and store response data
 
