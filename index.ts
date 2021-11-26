@@ -1,7 +1,7 @@
 
 // Link Checker
 
-import { sanitise, getCanonicalHrefs } from './parser.ts';
+import * as parser from './parser.ts';
 import * as helpers from './helpers.ts';
 import * as db from './database.ts';
 
@@ -48,7 +48,7 @@ while (true) {
             let redirectsTo = response.headers.get('location') ?? '';
             // FIXME: Sanitising will blank out redirects to external sites
             //        This may not be what we want to
-            redirectsTo = sanitise(DOMAIN, redirectsTo);
+            redirectsTo = parser.sanitise(DOMAIN, redirectsTo);
             await db.updateUrlIfExists(url, {
                 status: response.status,
                 type: response.headers.get('content-type') ?? '',
@@ -61,7 +61,7 @@ while (true) {
         } else {
             // Process any response except a redirect
             // Add all detected hrefs to the queue
-            const hrefs = getCanonicalHrefs(DOMAIN, html);
+            const hrefs = parser.getCanonicalHrefs(DOMAIN, html);
             for (const href of hrefs) {
                 await db.addUrlIfNotExists(href);
             }
