@@ -1,29 +1,42 @@
 
-const hrefRegex = /href\s*=\s*(?:[\'\"]*)([^\s\>\'\"\#\?]*)(?:[\'\"\s]*)/g;
+export class Parser {
 
-export function getCanonicalHrefs(root: string, text: string) {
-    const matches = text.matchAll(hrefRegex);
-    let output: string[] = [];
-    for (const match of matches) {
-        const href = sanitise(root, match[1]);
-        if (href) output.push(href);
+    domain: string;
+    readonly hrefRegex = /href\s*=\s*(?:[\'\"]*)([^\s\>\'\"\#\?]*)(?:[\'\"\s]*)/g;
+
+    constructor(domain: string) {
+        this.domain = domain;
     }
 
-    // Make unique and sort alphabetically
-    output = [...new Set(output)].sort();
+    getURLs(input: string): string[] {
+        const matches = input.matchAll(this.hrefRegex);
+        let output: string[] = [];
+        for (const match of matches) {
+            const href = this.cleanURL(match[1]);
+            if (href) output.push(href);
+        }
+        // Make unique and sort alphabetically
+        output = [...new Set(output)].sort();
 
-    return output;
-}
+        return output;
+    }
 
-export function sanitise(root: string, url: string) {
-    // Sanitise
-    if (url == '') return '';
-    if (url == '/') return '';
-    url = url.startsWith('/') ? root + url : url;
-    if (url == root) return '';
-    if (url == root + '/') return '';
-    if (url.startsWith('tel:')) return '';
-    if (url.startsWith('email:')) return '';
-    if (!url.startsWith(root)) return '';
-    return url;
+    cleanURL(url: string): string | null {
+        // Reject empty URLs
+        if (url == '') return null;
+        if (url == '/') return null;
+        // Fix naked URLs
+        url = url.startsWith('/') ? this.domain + url : url;
+        // Reject URLs same as domain
+        if (url == this.domain) return null;
+        if (url == this.domain + '/') return null;
+        // Reject non-HTTP schemas
+        if (url.startsWith('tel:')) return null;
+        if (url.startsWith('email:')) return null;
+        // Reject external URLs
+        if (!url.startsWith(this.domain)) return null;
+        // URL is clean
+        return url;
+    }
+
 }

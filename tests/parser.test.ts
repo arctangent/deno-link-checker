@@ -1,12 +1,13 @@
 
 import { assertEquals } from "https://deno.land/std@0.115.1/testing/asserts.ts";
 
-import * as parser from '../parser.ts';
+import { Parser } from '../parser.ts';
+
+const parser = new Parser('https://example.com');
 
 Deno.test({
     name: 'getCanonicalHrefs handles quoted and unquoted hrefs',
     fn: () => {
-        const root = 'https://example.com';
         const input = `
             <a href='https://example.com/1'>1</a>
             <a href="https://example.com/2">2</a>
@@ -17,7 +18,7 @@ Deno.test({
             'https://example.com/2',
             'https://example.com/3'
         ]
-        assertEquals(expected, parser.getCanonicalHrefs(root, input));
+        assertEquals(expected, parser.getURLs(input));
     }
 });
 
@@ -30,7 +31,7 @@ Deno.test({
             <a href=https://example.com/>trailing slash</a>
         `;
         const expected: string[] = [];
-        assertEquals(expected, parser.getCanonicalHrefs(root, input));
+        assertEquals(expected, parser.getURLs(input));
     }
 });
 
@@ -42,7 +43,7 @@ Deno.test({
             <a href=>zero</a>
         `;
         const expected: string[] = [];
-        assertEquals(expected, parser.getCanonicalHrefs(root, input));
+        assertEquals(expected, parser.getURLs(input));
     }
 });
 
@@ -56,7 +57,7 @@ Deno.test({
             <a href=https://example.com/deep/link#foo>deep qualified anchor</a>
         `;
         const expected: string[] = ['https://example.com/deep/link'];
-        assertEquals(expected, parser.getCanonicalHrefs(root, input));
+        assertEquals(expected, parser.getURLs(input));
     }
 });
 
@@ -70,7 +71,7 @@ Deno.test({
             <a href=https://example.com/deep/link?foo>deep querystring</a>
         `;
         const expected: string[] = ['https://example.com/deep/link'];
-        assertEquals(expected, parser.getCanonicalHrefs(root, input));
+        assertEquals(expected, parser.getURLs(input));
     }
 });
 
@@ -83,7 +84,7 @@ Deno.test({
             <a href=email:person@example.com>email</a>
         `;
         const expected: string[] = [];
-        assertEquals(expected, parser.getCanonicalHrefs(root, input));
+        assertEquals(expected, parser.getURLs(input));
     }
 });
 
@@ -95,7 +96,7 @@ Deno.test({
             <a href=https://not-exxample.com>external site</a>
         `;
         const expected: string[] = [];
-        assertEquals(expected, parser.getCanonicalHrefs(root, input));
+        assertEquals(expected, parser.getURLs(input));
     }
 });
 
@@ -107,6 +108,6 @@ Deno.test({
             <a href=https://example.com/foo attr=value>complicated anchor tag</a>
         `;
         const expected: string[] = ['https://example.com/foo'];
-        assertEquals(expected, parser.getCanonicalHrefs(root, input));
+        assertEquals(expected, parser.getURLs(input));
     }
 });

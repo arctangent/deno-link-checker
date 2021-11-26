@@ -1,7 +1,9 @@
 
 import { assertEquals } from "https://deno.land/std@0.115.1/testing/asserts.ts";
 
-import * as db from '../database.ts';
+import { Database } from '../database.ts';
+
+const db = new Database('./data/db.test.json')
 
 Deno.test({
     name: 'database dbCount does sums correctly',

@@ -1,15 +1,21 @@
 
 // Link Checker
 
-import * as parser from './parser.ts';
+import { Database } from './database.ts';
+import { Parser } from './parser.ts';
 import * as helpers from './helpers.ts';
-import * as db from './database.ts';
+
 
 // TODO: These should be exposed as command line arguments
 
 const DOMAIN = 'https://www.nhs.uk';
-const MAX_REQUESTS = 0;  // Set to zero to enforce no limit
+const MAX_REQUESTS = 100;  // Set to zero to enforce no limit
 const REQUEST_INTERVAL = 500;    // How many ms to sleep inbetween HTTP requests
+
+// Initialisation
+
+const parser = new Parser(DOMAIN);
+const db = new Database('./data/db.live.json')
 
 // Spider the site and store response data
 
@@ -45,23 +51,23 @@ while (true) {
         // Process the response
         if (response.status.toString().startsWith('3')) {
             // Process a redirect
-            let redirectsTo = response.headers.get('location') ?? '';
-            // FIXME: Sanitising will blank out redirects to external sites
-            //        This may not be what we want to
-            redirectsTo = parser.sanitise(DOMAIN, redirectsTo);
+            const redirectsTo = response.headers.get('location') ?? '';
             await db.updateUrlIfExists(url, {
                 status: response.status,
                 type: response.headers.get('content-type') ?? '',
                 timestamp: Date.now(),
+                // We store this without cleaning because we
+                // want to know the real value of the redirect
                 redirectsTo: redirectsTo
             })
-            // Queue the next hop in the redirect chain
-            await db.addUrlIfNotExists(redirectsTo);
-            info += ' --> ' + redirectsTo;
+            // Clean the redirect and queue the next hop in the redirect chain
+            const newURL = parser.cleanURL(redirectsTo);
+            if (newURL) await db.addUrlIfNotExists(newURL);
+            info += ' --> ' + newURL;
         } else {
             // Process any response except a redirect
             // Add all detected hrefs to the queue
-            const hrefs = parser.getCanonicalHrefs(DOMAIN, html);
+            const hrefs = parser.getURLs(html);
             for (const href of hrefs) {
                 await db.addUrlIfNotExists(href);
             }
