@@ -25,7 +25,6 @@ Deno.test({
 Deno.test({
     name: 'getCanonicalHrefs ignores self links',
     fn: () => {
-        const root = 'https://example.com';
         const input = `
             <a href=https://example.com>naked</a>
             <a href=https://example.com/>trailing slash</a>
@@ -38,7 +37,6 @@ Deno.test({
 Deno.test({
     name: 'getCanonicalHrefs ignores zero length hrefs',
     fn: () => {
-        const root = 'https://example.com';
         const input = `
             <a href=>zero</a>
         `;
@@ -50,7 +48,6 @@ Deno.test({
 Deno.test({
     name: 'getCanonicalHrefs ignores anchor links',
     fn: () => {
-        const root = 'https://example.com';
         const input = `
             <a href=#foo>naked anchor</a>
             <a href=https://example.com#foo>qualified anchor</a>
@@ -64,7 +61,6 @@ Deno.test({
 Deno.test({
     name: 'getCanonicalHrefs ignores querystring',
     fn: () => {
-        const root = 'https://example.com';
         const input = `
             <a href=?foo>naked querystring</a>
             <a href=https://example.com?foo>qualified querystring</a>
@@ -78,7 +74,6 @@ Deno.test({
 Deno.test({
     name: 'getCanonicalHrefs ignores non-https schemes',
     fn: () => {
-        const root = 'https://example.com';
         const input = `
             <a href=tel:08005551234>phone</a>
             <a href=email:person@example.com>email</a>
@@ -91,7 +86,6 @@ Deno.test({
 Deno.test({
     name: 'getCanonicalHrefs ignores external links',
     fn: () => {
-        const root = 'https://example.com';
         const input = `
             <a href=https://not-exxample.com>external site</a>
         `;
@@ -103,7 +97,6 @@ Deno.test({
 Deno.test({
     name: 'getCanonicalHrefs ignores href trailing space',
     fn: () => {
-        const root = 'https://example.com';
         const input = `
             <a href=https://example.com/foo attr=value>complicated anchor tag</a>
         `;
