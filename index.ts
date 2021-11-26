@@ -2,8 +2,8 @@
 // Link Checker
 
 import { sanitise, getCanonicalHrefs } from './parser.ts';
-import { sleep } from './helpers.ts';
-import { dbAddUrlIfNotExists, dbUpdateUrlIfExists, dbGetUnscannedUrls } from './database.ts';
+import * as helpers from './helpers.ts';
+import * as db from './database.ts';
 
 // TODO: These should be exposed as command line arguments
 
@@ -13,7 +13,7 @@ const REQUEST_INTERVAL = 500;    // How many ms to sleep inbetween HTTP requests
 
 // Spider the site and store response data
 
-await dbAddUrlIfNotExists(DOMAIN);
+await db.addUrlIfNotExists(DOMAIN);
 
 let batch: string[] = []  
 let requestCount = 0;
@@ -24,7 +24,7 @@ while (true) {
     // Pull urls from the queue
     // TODO: We will want to re-scan URLs after
     // some period of time has elapsed
-    batch = await dbGetUnscannedUrls();
+    batch = await db.getUnscannedUrls();
 
     // Guard for empty batch i.e. we're done
     if (batch.length == 0) break;
@@ -40,7 +40,7 @@ while (true) {
         const html = await response.text();
 
         // Build progress info string for later display to user
-        let info = requestCount.toString().padStart(6, '0') + ': ' + response.status + ' ' + url;
+        let info = helpers.paddedRequestCount(requestCount) + ': ' + response.status + ' ' + url;
     
         // Process the response
         if (response.status.toString().startsWith('3')) {
@@ -49,24 +49,24 @@ while (true) {
             // FIXME: Sanitising will blank out redirects to external sites
             //        This may not be what we want to
             redirectsTo = sanitise(DOMAIN, redirectsTo);
-            await dbUpdateUrlIfExists(url, {
+            await db.updateUrlIfExists(url, {
                 status: response.status,
                 type: response.headers.get('content-type') ?? '',
                 timestamp: Date.now(),
                 redirectsTo: redirectsTo
             })
             // Queue the next hop in the redirect chain
-            await dbAddUrlIfNotExists(redirectsTo);
+            await db.addUrlIfNotExists(redirectsTo);
             info += ' --> ' + redirectsTo;
         } else {
             // Process any response except a redirect
             // Add all detected hrefs to the queue
             const hrefs = getCanonicalHrefs(DOMAIN, html);
             for (const href of hrefs) {
-                await dbAddUrlIfNotExists(href);
+                await db.addUrlIfNotExists(href);
             }
             // Update this url
-            await dbUpdateUrlIfExists(url, {
+            await db.updateUrlIfExists(url, {
                 status: response.status,
                 type: response.headers.get('content-type') ?? '',
                 timestamp: Date.now(),
@@ -77,7 +77,7 @@ while (true) {
         console.log(info);
 
         // Play nice with the server
-        await sleep(REQUEST_INTERVAL);
+        await helpers.sleep(REQUEST_INTERVAL);
 
     }
 

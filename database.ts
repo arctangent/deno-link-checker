@@ -15,15 +15,15 @@ interface RequestResponse {
 
 const database = new Database<RequestResponse>('./database.json');
 
-export async function dbFlush() {
+export async function flush() {
     await database.drop();
 }
 
-export async function dbCount(params: Partial<RequestResponse>) {
+export async function count(params: Partial<RequestResponse>) {
     return await database.count(params);
 }
 
-export async function dbAddUrlIfNotExists(url: string, params?: Omit<RequestResponse, 'url'>) {
+export async function addUrlIfNotExists(url: string, params?: Omit<RequestResponse, 'url'>) {
     const exists = await database.count({ url: url });
     if (exists != 0) return;
     await database.insertOne({ url: url, status: 0 });
@@ -32,12 +32,12 @@ export async function dbAddUrlIfNotExists(url: string, params?: Omit<RequestResp
     }
 }
 
-export async function dbUpdateUrlIfExists(url: string, params: Omit<RequestResponse, 'url'>) {
+export async function updateUrlIfExists(url: string, params: Omit<RequestResponse, 'url'>) {
     // NOTE: If url not found then no action taken
     await database.updateOne({ url: url }, params);
 }
 
-export async function dbGetUnscannedUrls() {
+export async function getUnscannedUrls() {
     const objs = await database.findMany({ status: 0 });
     const urls = [];
     for (const obj of objs) {
