@@ -55,7 +55,6 @@ while (true) {
             const redirectsTo = response.headers.get('location') ?? '';
             await db.updateUrlIfExists(url, {
                 status: response.status,
-                type: response.headers.get('content-type') ?? '',
                 timestamp: Date.now(),
                 // We store this without cleaning because we
                 // want to know the real value of the redirect
