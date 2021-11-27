@@ -48,7 +48,7 @@ export class Parser {
 
     isExcluded(url: string): boolean {
         for (const exclude of this.excludes) {
-            if (url.startsWith(exclude)) return true;
+            if (url.toLowerCase().startsWith(exclude)) return true;
         }
         return false;
     }

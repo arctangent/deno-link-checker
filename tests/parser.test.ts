@@ -112,6 +112,7 @@ Deno.test({
         const input = `
             <a href=https://example.com/foo>included</a>
             <a href=https://example.com/ignore>excluded</a>
+            <a href=https://example.com/IGNORE/ME>also excluded</a>
             <a href=https://example.com/ignore/me/too>also excluded</a>
         `;
         const expected: string[] = ['https://example.com/foo'];
