@@ -1,12 +1,12 @@
 
-import { Database as AloeDB } from 'https://deno.land/x/aloedb@0.9.0/mod.ts';
+import { Database as AloeDB, lessThan } from 'https://deno.land/x/aloedb@0.9.0/mod.ts';
 
 interface RequestResponse {
     url: string;
-    status?: number; // HTTP Status Code on last scan
+    status: number; // HTTP Status Code on last scan
     type?: string;   // HTTP ContentType on last scan
     // Timestamping
-    timestamp?: number;    // Unix epoch
+    timestamp: number;    // Unix epoch
     // Track hrefs in page content
     linksTo?: string[];         // Where does this page link to
     // Track redirects
@@ -29,27 +29,28 @@ export class Database {
         return await this.db.count(params);
     }
 
-    async addUrlIfNotExists(url: string, params?: Omit<RequestResponse, 'url'>) {
+    async enqueue(url: string) {
         const exists = await this.db.count({ url: url });
         if (exists != 0) return;
-        await this.db.insertOne({ url: url, status: 0 });
-        if (params) {
-            await this.db.updateOne({ url: url }, params);
-        }
+        // We set status and timestamp to zero because the URL has not yet been scanned
+        await this.db.insertOne({ url: url, status: 0, timestamp: 0 });
     }
 
-    async updateUrlIfExists(url: string, params: Omit<RequestResponse, 'url'>) {
+    async update(url: string, params: Omit<RequestResponse, 'url' | 'timestamp'>) {
         // NOTE: If url not found then no action taken
         await this.db.updateOne({ url: url }, params);
+        await this.db.updateOne({ url: url }, { timestamp: Date.now() });
     }
 
-    async getUnscannedUrls() {
+    async getQueued() {
         const objs = await this.db.findMany({ status: 0 });
-        const urls = [];
-        for (const obj of objs) {
-            urls.push(obj.url);
-        }
-        return urls;
+        return Array.from(objs, obj => obj.url);
+    }
+
+    async getStale(timeToLive: number) {
+        const threshold = Date.now() - (timeToLive * 1000);
+        const objs = await this.db.findMany({ timestamp: lessThan(threshold) });
+        return Array.from(objs, obj => obj.url);
     }
 
 }

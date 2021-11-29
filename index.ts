@@ -12,6 +12,7 @@ const DOMAIN = 'https://www.nhs.uk';
 const EXCLUDES = ['/service-search'];   // These URLs will be completely ignored
 const MAX_REQUESTS = 100;       // Set to zero to enforce no limit
 const REQUEST_INTERVAL = 500;   // How many ms to sleep inbetween HTTP requests
+const TIME_TO_LIVE = 15*60;     // After how many seconds is data considered stale
 
 // Initialisation
 
@@ -20,7 +21,7 @@ const db = new Database('./data/db.live.json');
 
 // Spider the site and store response data
 
-await db.addUrlIfNotExists(DOMAIN);
+await db.enqueue(DOMAIN);
 
 let batch: string[] = []  
 let requestCount = 0;
@@ -28,10 +29,11 @@ let requestCount = 0;
 infiniteLoop:
 while (true) {
 
-    // Pull urls from the queue
-    // TODO: We will want to re-scan URLs after
-    // some period of time has elapsed
-    batch = await db.getUnscannedUrls();
+    // Form a batch of URLs to process
+    batch = [
+        ...await db.getStale(TIME_TO_LIVE),
+        ...await db.getQueued(),
+    ];
 
     // Guard for empty batch i.e. we're done
     if (batch.length == 0) break;
@@ -53,29 +55,27 @@ while (true) {
         if (response.status.toString().startsWith('3')) {
             // Process a redirect
             const redirectsTo = response.headers.get('location') ?? '';
-            await db.updateUrlIfExists(url, {
+            await db.update(url, {
                 status: response.status,
-                timestamp: Date.now(),
                 // We store this without cleaning because we
                 // want to know the real value of the redirect
                 redirectsTo: redirectsTo
             })
             // Clean the redirect and queue the next hop in the redirect chain
             const newURL = parser.cleanURL(redirectsTo);
-            if (newURL) await db.addUrlIfNotExists(newURL);
+            if (newURL) await db.enqueue(newURL);
             info += ' --> ' + newURL;
         } else {
             // Process any response except a redirect
             // Add all detected hrefs to the queue
             const hrefs = parser.getURLs(html);
             for (const href of hrefs) {
-                await db.addUrlIfNotExists(href);
+                await db.enqueue(href);
             }
             // Update this url
-            await db.updateUrlIfExists(url, {
+            await db.update(url, {
                 status: response.status,
                 type: response.headers.get('content-type') ?? '',
-                timestamp: Date.now(),
                 linksTo: hrefs,
             })
         }

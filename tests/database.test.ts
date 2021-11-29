@@ -6,16 +6,15 @@ import { Database } from '../database.ts';
 const db = new Database('./data/db.test.json')
 
 Deno.test({
-    name: 'database dbCount does sums correctly',
+    name: 'database count does sums correctly',
     fn: async () => {
         await db.flush();
-        await db.addUrlIfNotExists('https://www.example.com/1');
-        await db.addUrlIfNotExists('https://www.example.com/2');
+        await db.enqueue('https://www.example.com/1');
+        await db.enqueue('https://www.example.com/2');
         assertEquals(2, await db.count({}));
-        await db.addUrlIfNotExists('https://www.example.com/3');
+        await db.enqueue('https://www.example.com/3');
         assertEquals(3, await db.count({}));
     }
-
 });
 
 Deno.test({
@@ -23,8 +22,19 @@ Deno.test({
     fn: async () => {
         await db.flush();
         const href = 'https://www.example.com';
-        await db.addUrlIfNotExists(href);
-        await db.addUrlIfNotExists(href);
+        await db.enqueue(href);
+        await db.enqueue(href);
         assertEquals(1, await db.count({}));
+    }
+});
+
+Deno.test({
+    name: 'database getQueued works correctly',
+    fn: async () => {
+        await db.flush();
+        await db.enqueue('url1');
+        await db.enqueue('url2');
+        await db.update('url2', { status: 200 })
+        assertEquals(['url1'], await db.getQueued());
     }
 });
