@@ -4,13 +4,15 @@ import { Database as AloeDB, lessThan } from 'https://deno.land/x/aloedb@0.9.0/m
 interface RequestResponse {
     url: string;
     status: number; // HTTP Status Code on last scan
-    type?: string;   // HTTP ContentType on last scan
+    type: string;  // HTTP ContentType on last scan
     // Timestamping
-    timestamp: number;    // Unix epoch
+    timestamp: number;  // Unix epoch
     // Track hrefs in page content
-    linksTo?: string[];         // Where does this page link to
+    outboundHyperlinks: string[];  // Where does this page link to
+    inboundHyperlinks: string[];   // Which pages link here
     // Track redirects
-    redirectsTo?: string;       // Where does this URL redirect to
+    outboundRedirect: string;  // Where does this URL redirect to
+    inboundRedirects: string[] // Which URLs redirect to here
 }
 
 export class Database {
@@ -32,14 +34,27 @@ export class Database {
     async enqueue(url: string) {
         const exists = await this.db.count({ url: url });
         if (exists != 0) return;
-        // We set status and timestamp to zero because the URL has not yet been scanned
-        await this.db.insertOne({ url: url, status: 0, timestamp: 0 });
+        // Construct an empty record
+        await this.db.insertOne({
+            url: url,
+            status: 0,
+            type: '',
+            timestamp: 0,
+            outboundHyperlinks: [],
+            inboundHyperlinks: [],
+            outboundRedirect: '',
+            inboundRedirects: []
+        });
     }
 
-    async update(url: string, params: Omit<RequestResponse, 'url' | 'timestamp'>) {
+    async update(url: string, params: Partial<RequestResponse>) {
         // NOTE: If url not found then no action taken
         await this.db.updateOne({ url: url }, params);
         await this.db.updateOne({ url: url }, { timestamp: Date.now() });
+    }
+
+    async get(url: string) {
+        return await this.db.findOne({ url: url });
     }
 
     async getQueued() {
@@ -53,4 +68,23 @@ export class Database {
         return Array.from(objs, obj => obj.url);
     }
 
+    async addInboundHyperlink(target: string, origin: string) {
+        await this.db.updateOne({ url: target }, (record: RequestResponse) => {
+            let newList = [origin]
+            newList.push(...record.inboundHyperlinks);
+            newList = [...new Set(newList)].sort();
+            record.inboundHyperlinks = newList;
+            return record;
+        });
+    }
+
+    async addInboundRedirect(target: string, origin: string) {
+        await this.db.updateOne({ url: target }, (record: RequestResponse) => {
+            let newList = [origin]
+            newList.push(...record.inboundRedirects);
+            newList = [...new Set(newList)].sort();
+            record.inboundRedirects = newList;
+            return record;
+        });
+    }
 }

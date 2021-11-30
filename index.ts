@@ -11,7 +11,7 @@ import * as helpers from './helpers.ts';
 const DOMAIN = 'https://www.nhs.uk';
 const EXCLUDES = ['/service-search'];   // These URLs will be completely ignored
 const MAX_REQUESTS = 100;       // Set to zero to enforce no limit
-const REQUEST_INTERVAL = 500;   // How many ms to sleep inbetween HTTP requests
+const REQUEST_INTERVAL = 100;   // How many ms to sleep inbetween HTTP requests
 const TIME_TO_LIVE = 15*60;     // After how many seconds is data considered stale
 
 // Initialisation
@@ -23,17 +23,11 @@ const db = new Database('./data/db.live.json');
 
 await db.enqueue(DOMAIN);
 
-let batch: string[] = []  
+let batch = [DOMAIN]; 
 let requestCount = 0;
 
 infiniteLoop:
 while (true) {
-
-    // Form a batch of URLs to process
-    batch = [
-        ...await db.getStale(TIME_TO_LIVE),
-        ...await db.getQueued(),
-    ];
 
     // Guard for empty batch i.e. we're done
     if (batch.length == 0) break;
@@ -43,6 +37,14 @@ while (true) {
         // Guard for maxRequests
         requestCount++;
         if (MAX_REQUESTS && (requestCount > MAX_REQUESTS)) break infiniteLoop;     
+
+        // Scrub old data
+        await db.update(url, {
+            status: 0,
+            type: '',
+            outboundHyperlinks: [],
+            outboundRedirect: '',
+        })
 
         // Fetch the url and store data
         const response = await fetch(url, { redirect: 'manual' });
@@ -54,16 +56,19 @@ while (true) {
         // Process the response
         if (response.status.toString().startsWith('3')) {
             // Process a redirect
-            const redirectsTo = response.headers.get('location') ?? '';
+            const redirect = response.headers.get('location') ?? '';
             await db.update(url, {
                 status: response.status,
                 // We store this without cleaning because we
                 // want to know the real value of the redirect
-                redirectsTo: redirectsTo
+                outboundRedirect: redirect
             })
             // Clean the redirect and queue the next hop in the redirect chain
-            const newURL = parser.cleanURL(redirectsTo);
-            if (newURL) await db.enqueue(newURL);
+            const newURL = parser.cleanURL(redirect);
+            if (newURL) {
+                await db.enqueue(newURL);
+                await db.addInboundRedirect(newURL, url);
+            }
             info += ' --> ' + newURL;
         } else {
             // Process any response except a redirect
@@ -71,12 +76,13 @@ while (true) {
             const hrefs = parser.getURLs(html);
             for (const href of hrefs) {
                 await db.enqueue(href);
+                await db.addInboundHyperlink(href, url);
             }
             // Update this url
             await db.update(url, {
                 status: response.status,
                 type: response.headers.get('content-type') ?? '',
-                linksTo: hrefs,
+                outboundHyperlinks: hrefs,
             })
         }
         // Display progress to user
@@ -85,6 +91,11 @@ while (true) {
         // Play nice with the server
         await helpers.sleep(REQUEST_INTERVAL);
 
+        // Create a new batch of URLs to process
+        batch = [
+            ...await db.getStale(TIME_TO_LIVE),
+            ...await db.getQueued(),
+        ];
     }
 
 }
