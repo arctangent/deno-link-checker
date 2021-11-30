@@ -11,7 +11,7 @@ import * as helpers from './helpers.ts';
 const DOMAIN = 'https://www.nhs.uk';
 const EXCLUDES = ['/service-search'];   // These URLs will be completely ignored
 const MAX_REQUESTS = 100;       // Set to zero to enforce no limit
-const REQUEST_INTERVAL = 100;   // How many ms to sleep inbetween HTTP requests
+const REQUEST_INTERVAL = 100;   // How many ms to sleep between HTTP requests
 const TIME_TO_LIVE = 15*60;     // After how many seconds is data considered stale
 
 // Initialisation
