@@ -3,24 +3,34 @@ import { Database as AloeDB, lessThan } from 'https://deno.land/x/aloedb@0.9.0/m
 
 interface RequestResponse {
     url: string;
-    status: number; // HTTP Status Code on last scan
-    type: string;  // HTTP ContentType on last scan
-    // Timestamping
-    timestamp: number;  // Unix epoch
-    // Track hrefs in page content
-    outboundHyperlinks: string[];  // Where does this page link to
-    inboundHyperlinks: string[];   // Which pages link here
-    // Track redirects
-    outboundRedirect: string;  // Where does this URL redirect to
-    inboundRedirects: string[] // Which URLs redirect to here
+    // HTTP Status Code on last scan
+    // If we were redirected then this is
+    // the status code of the eventual location
+    status: number;
+    // Timestamping info to help detect stale data
+    lastUpdated: number;    // When did we last scan this URL
+    lastDetected: number;   // When was this URL last found in a page
+    // HREFs found in page content
+    hyperlinks: string[];
+    // Where we redirected when requesting this URL?
+    redirected: boolean;
+    // Where does this URL eventually resolve to?
+    // This will be the same as URL if not redirected,
+    // otherwise it will be the last hop in any redirect chain
+    location: string;       
 }
 
 export class Database {
 
     db: AloeDB<RequestResponse>;
 
-    constructor(path: string) {
-        this.db = new AloeDB<RequestResponse>(path);
+    constructor(path?: string) {
+        if (path) {
+            this.db = new AloeDB<RequestResponse>(path);
+        } else {
+            // In-memory DB used for testing
+            this.db = new AloeDB<RequestResponse>();
+        }
     }
 
     async flush() {
@@ -33,24 +43,28 @@ export class Database {
 
     async enqueue(url: string) {
         const exists = await this.db.count({ url: url });
-        if (exists != 0) return;
+        // If URL has previously been detected then
+        // record the new detection and exit
+        if (exists != 0) {
+            await this.db.updateOne({ url: url }, { lastDetected: Date.now() })
+            return;
+        }
         // Construct an empty record
         await this.db.insertOne({
             url: url,
             status: 0,
-            type: '',
-            timestamp: 0,
-            outboundHyperlinks: [],
-            inboundHyperlinks: [],
-            outboundRedirect: '',
-            inboundRedirects: []
+            lastUpdated: 0,
+            lastDetected: Date.now(),
+            hyperlinks: [],
+            redirected: false,
+            location: '',
         });
     }
 
     async update(url: string, params: Partial<RequestResponse>) {
         // NOTE: If url not found then no action taken
         await this.db.updateOne({ url: url }, params);
-        await this.db.updateOne({ url: url }, { timestamp: Date.now() });
+        await this.db.updateOne({ url: url }, { lastUpdated: Date.now() });
     }
 
     async get(url: string) {
@@ -64,27 +78,8 @@ export class Database {
 
     async getStale(timeToLive: number) {
         const threshold = Date.now() - (timeToLive * 1000);
-        const objs = await this.db.findMany({ timestamp: lessThan(threshold) });
+        const objs = await this.db.findMany({ lastUpdated: lessThan(threshold) });
         return Array.from(objs, obj => obj.url);
     }
 
-    async addInboundHyperlink(target: string, origin: string) {
-        await this.db.updateOne({ url: target }, (record: RequestResponse) => {
-            let newList = [origin]
-            newList.push(...record.inboundHyperlinks);
-            newList = [...new Set(newList)].sort();
-            record.inboundHyperlinks = newList;
-            return record;
-        });
-    }
-
-    async addInboundRedirect(target: string, origin: string) {
-        await this.db.updateOne({ url: target }, (record: RequestResponse) => {
-            let newList = [origin]
-            newList.push(...record.inboundRedirects);
-            newList = [...new Set(newList)].sort();
-            record.inboundRedirects = newList;
-            return record;
-        });
-    }
 }

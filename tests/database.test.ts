@@ -3,7 +3,7 @@ import { assertEquals } from "https://deno.land/std@0.115.1/testing/asserts.ts";
 
 import { Database } from '../database.ts';
 
-const db = new Database('./data/db.test.json')
+const db = new Database();
 
 Deno.test({
     name: 'database count does sums correctly',
@@ -36,29 +36,5 @@ Deno.test({
         await db.enqueue('url2');
         await db.update('url2', { status: 200 })
         assertEquals(['url1'], await db.getQueued());
-    }
-});
-
-Deno.test({
-    name: 'database addInboundHyperlink ignores duplicates',
-    fn: async () => {
-        await db.flush();
-        await db.enqueue('url1');
-        await db.addInboundHyperlink('url1', 'url2');
-        await db.addInboundHyperlink('url1', 'url2');
-        const record = await db.get('url1');
-        assertEquals(1, record?.inboundHyperlinks.length);
-    }
-});
-
-Deno.test({
-    name: 'database addInboundRedirects ignores duplicates',
-    fn: async () => {
-        await db.flush();
-        await db.enqueue('url1');
-        await db.addInboundRedirect('url1', 'url2');
-        await db.addInboundRedirect('url1', 'url2');
-        const record = await db.get('url1');
-        assertEquals(1, record?.inboundRedirects.length);
     }
 });
