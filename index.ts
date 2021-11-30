@@ -75,6 +75,7 @@ while (true) {
             // Add all detected hrefs to the queue
             const hrefs = parser.getURLs(html);
             for (const href of hrefs) {
+                // FIXME: This is not a very efficient way to do things
                 await db.enqueue(href);
                 await db.addInboundHyperlink(href, url);
             }
