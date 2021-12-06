@@ -1,29 +1,61 @@
 
 // Link Checker
 
+import { parse as parseCommandLineArguments } from "https://deno.land/std/flags/mod.ts";
+
 import { Database } from './database.ts';
 import { Parser } from './parser.ts';
 import * as helpers from './helpers.ts';
 
+/*
+ Configuration
+*/
 
-// TODO: These should be exposed as command line arguments
+// e.g. `deno run index.ts https://www.example.com /excluded /also/excluded` to use all default args
+// or e.g. `deno run index.ts -m 1000 -r 250 -t 3600 https://www.example.com /excluded /also/excluded`
 
-const DOMAIN = 'https://www.nhs.uk';
-const EXCLUDES = ['/service-search'];   // These URLs will be completely ignored
-const MAX_REQUESTS = 100;       // Set to zero to enforce no limit
-const REQUEST_INTERVAL = 100;   // How many ms to sleep between HTTP requests
-const TIME_TO_LIVE = 15*60;     // After how many seconds is data considered stale
+// Grab the command line params
+const args = parseCommandLineArguments(
+    Deno.args,
+    {
+        alias: {
+            m: "MAX_REQUESTS",
+            r: "REQUEST_INTERVAL",
+            t: "TIME_TO_LIVE"
+        }
+    }
+);
 
-// Initialisation
+// Build our config object
+const config = {
+    DOMAIN: 'https://www.nhs.uk',   // Default to potentially be overwritten below
+    EXCLUDES: ['/service-search'],  // Default to potentially be overwritten below
+    MAX_REQUESTS: args.MAX_REQUESTS ?? 100,     // Set to zero to enforce no limit,
+    REQUEST_INTERVAL: args.MAX_REQUESTS ?? 100, // How many ms to sleep between HTTP requests,
+    TIME_TO_LIVE: args.TIME_TO_LIVE ?? 15*60,   // After how many seconds is data considered stale,
+};
 
-const parser = new Parser(DOMAIN, EXCLUDES);
-const db = new Database('./data/db.live.json');
+// Overwrite the default DOMAIN and EXCLUDES if supplied
+if (args._) {
+    if (args._.length > 0) config.DOMAIN = args._[0] as string;
+    if (!config.DOMAIN.startsWith('https://')) config.DOMAIN = 'https://' + config.DOMAIN;
+    if (args._.length > 1) config.EXCLUDES = args._.slice(1) as string[];
+}
 
-// Spider the site and store response data
+/*
+ Initialisation
+*/
 
-await db.enqueue(DOMAIN);
+const parser = new Parser(config.DOMAIN, config.EXCLUDES);
+const db = new Database(`./data/${config.DOMAIN.split('//')[1]}/db.json`);
 
-let batch = [DOMAIN]; 
+/*
+ Spider the site and store response data
+*/
+
+await db.enqueue(config.DOMAIN);
+
+let batch = [config.DOMAIN]; 
 let requestCount = 0;
 
 infiniteLoop:
@@ -36,7 +68,7 @@ while (true) {
 
         // Guard for maxRequests
         requestCount++;
-        if (MAX_REQUESTS && (requestCount > MAX_REQUESTS)) break infiniteLoop;     
+        if (config.MAX_REQUESTS && (requestCount > config.MAX_REQUESTS)) break infiniteLoop;     
 
         // Scrub old data
         await db.update(url, {
@@ -74,12 +106,12 @@ while (true) {
 
         // Create a new batch of URLs to process
         batch = [
-            ...await db.getStale(TIME_TO_LIVE),
+            ...await db.getStale(config.TIME_TO_LIVE),
             ...await db.getQueued(),
         ];
 
         // Introduce a deliberate delay between requests
-        await helpers.sleep(REQUEST_INTERVAL);
+        await helpers.sleep(config.REQUEST_INTERVAL);
 
     }
 
