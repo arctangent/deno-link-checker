@@ -47,9 +47,9 @@ while (true) {
         // so that we can continue scraping uninterrupted
         let info: string;
         let response: Response | null;
-        let html: string = "";
+        let html = "";
 
-        response = await fetch(url).catch(err => null);
+        response = await fetch(url).catch(() => null);
         if (response) {
             html = await response.text();
             // Build progress info string for later display to user
