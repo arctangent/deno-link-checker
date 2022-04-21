@@ -1,5 +1,6 @@
 
 // Link Checker
+// Example usage: deno run --allow-all index.ts -m 0 -t 86400
 
 import { config } from './configurator.ts';
 import { Database } from './database.ts';
@@ -32,7 +33,7 @@ while (true) {
 
         // Guard for maxRequests
         requestCount++;
-        if (config.MAX_REQUESTS && (requestCount > config.MAX_REQUESTS)) break infiniteLoop;     
+        if (config.MAX_REQUESTS && (requestCount > config.MAX_REQUESTS)) break infiniteLoop;
 
         // Scrub old data
         await db.update(url, {
@@ -42,41 +43,61 @@ while (true) {
         })
 
         // Fetch the url and store data
-        const response = await fetch(url);
-        const html = await response.text();
+        // Note that we catch any errors from the fetch promise
+        // so that we can continue scraping uninterrupted
+        let info: string;
+        let response: Response | null;
+        let html: string = "";
 
-        // Build progress info string for later display to user
-        // FIXME: This is ugly
-        let info = helpers.paddedRequestCount(requestCount) + ': ' + response.status + ' ';
-        if (response.redirected) info += 'R ';
-        info += url;
-    
-        // Process the response
+        response = await fetch(url).catch(err => null);
+        if (response) {
+            html = await response.text();
+            // Build progress info string for later display to user
+            // FIXME: This is ugly
+            info = helpers.paddedRequestCount(requestCount) + ': ' + response.status + ' ';
+            if (response.redirected) info += 'R ';
+            info += url;
 
-        const hrefs = parser.getURLs(html);
-        for (const href of hrefs) {
-            await db.enqueue(href);
+            // Process the response
+
+            const hrefs = parser.getURLs(html);
+            for (const href of hrefs) {
+                await db.enqueue(href);
+            }
+
+            await db.update(url, {
+                status: response.status,
+                hyperlinks: hrefs,
+                redirected: response.redirected,
+                location: response.url,
+            });
+        } else {
+            // Handle error
+            // FIXME: This is ugly
+            info = helpers.paddedRequestCount(requestCount) + ': ERROR ';
+            info += url;
+
+            await db.update(url, {
+                status: 500,
+                hyperlinks: [],
+                redirected: false,
+                location: "",
+            });
+
         }
-
-        await db.update(url, {
-            status: response.status,
-            hyperlinks: hrefs,
-            redirected: response.redirected,
-            location: response.url,
-        });
 
         // Display progress to user
         console.log(info);
-
-        // Create a new batch of URLs to process
-        batch = [
-            ...await db.getStale(config.TIME_TO_LIVE),
-            ...await db.getQueued(),
-        ];
 
         // Introduce a deliberate delay between requests
         await helpers.sleep(config.REQUEST_INTERVAL);
 
     }
+
+    // Create a new batch of URLs to process
+    batch = [
+        ...await db.getStale(config.TIME_TO_LIVE),
+        ...await db.getQueued(),
+    ];
 
 }
