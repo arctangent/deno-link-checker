@@ -1,7 +1,7 @@
 
 import { Database as AloeDB, lessThan } from 'https://deno.land/x/aloedb@0.9.0/mod.ts';
 
-interface RequestResponse {
+export interface RequestResponse {
     url: string;
     // HTTP Status Code on last scan
     // If we were redirected then this is

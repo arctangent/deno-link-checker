@@ -1,2 +1,4 @@
 .DS_Store
 data/*/db.json
+data/*/redirects.csv
+data/*/inbounds.csv

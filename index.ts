@@ -48,6 +48,7 @@ while (true) {
         let info: string;
         let response: Response | null;
         let html = "";
+        let hrefs: string[] = [];
 
         response = await fetch(url).catch(() => null);
         if (response) {
@@ -60,9 +61,14 @@ while (true) {
 
             // Process the response
 
-            const hrefs = parser.getURLs(html);
-            for (const href of hrefs) {
-                await db.enqueue(href);
+            if (!response.url.includes(config.DOMAIN)) {
+                // Don't store the URLs detected on external sites
+                // we may have been redirected to
+            } else {
+                hrefs = parser.getURLs(html);
+                for (const href of hrefs) {
+                    await db.enqueue(href);
+                }
             }
 
             await db.update(url, {
